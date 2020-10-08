@@ -24,7 +24,7 @@ void main() {
 
 	vec3 s = specular;
 	vec3 d = diffuse;
-	if(has_texture) {
+	if(has_textures) {
 		vec3 d = texture(diff_map, fs_in.texCoords).rgb;
 	}
 

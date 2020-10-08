@@ -32,7 +32,7 @@ void
 edaf80::Assignment4::run()
 {
 	// Set up the camera
-	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 0.0f, 6.0f));
+	mCamera.mWorld.SetTranslate(glm::vec3(25.0f, 7.0f, 50.0f));
 	mCamera.mMouseSensitivity = 0.003f;
 	mCamera.mMovementSpeed = 3.0f; // 3 m/s => 10.8 km/h
 	auto camera_position = mCamera.mWorld.GetTranslation();
@@ -41,24 +41,106 @@ edaf80::Assignment4::run()
 	ShaderProgramManager program_manager;
 	GLuint fallback_shader = 0u;
 	program_manager.CreateAndRegisterProgram("Fallback",
-	                                         { { ShaderType::vertex, "EDAF80/fallback.vert" },
-	                                           { ShaderType::fragment, "EDAF80/fallback.frag" } },
-	                                         fallback_shader);
+											{ { ShaderType::vertex, "EDAF80/fallback.vert" },
+											  { ShaderType::fragment, "EDAF80/fallback.frag" } },
+											fallback_shader);
 	if (fallback_shader == 0u) {
 		LogError("Failed to load fallback shader");
 		return;
 	}
 
+	GLuint diffuse_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Diffuse",
+											{ { ShaderType::vertex, "EDAF80/diffuse.vert" },
+											  { ShaderType::fragment, "EDAF80/diffuse.frag" } },
+											diffuse_shader);
+	if (diffuse_shader == 0u)
+		LogError("Failed to load diffuse shader");
+
+	GLuint normal_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Normal",
+											{ { ShaderType::vertex, "EDAF80/normal.vert" },
+												{ ShaderType::fragment, "EDAF80/normal.frag" } },
+											normal_shader);
+	if (normal_shader == 0u)
+		LogError("Failed to load normal shader");
+
+	GLuint texcoord_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Texture coords",
+											{ { ShaderType::vertex, "EDAF80/texcoord.vert" },
+											  { ShaderType::fragment, "EDAF80/texcoord.frag" } },
+											texcoord_shader);
+	if (texcoord_shader == 0u)
+		LogError("Failed to load texcoord shader");
+
+
 	//
 	// Todo: Insert the creation of other shader programs.
 	//       (Check how it was done in assignment 3.)
 	//
+	// SKYBOX SHADER:
+	GLuint skybox_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Skybox",
+		{ { ShaderType::vertex, "EDAF80/skybox.vert" },
+		  { ShaderType::fragment, "EDAF80/skybox.frag" } },
+		skybox_shader);
+	if (skybox_shader == 0u)
+		LogError("Failed to load skybox shader");
 
-	float ellapsed_time_s = 0.0f;
+	// WAVES:
+	GLuint waves_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Waves",
+		{ { ShaderType::vertex, "EDAF80/waves.vert" },
+		  { ShaderType::fragment, "EDAF80/waves.frag" } },
+		waves_shader);
+	if (waves_shader == 0u)
+		LogError("Failed to load phong shader");
 
 	//
 	// Todo: Load your geometry
 	//
+	auto quad_shape = parametric_shapes::createQuad(50.0f, 50.0f, 50u, 50u);
+	if (quad_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the demo sphere");
+		return;
+	}
+	auto skybox_shape = parametric_shapes::createSphere(100.0f, 100u, 100u);
+	if (skybox_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the skybox");
+		return;
+	}
+	auto sphere_shape = parametric_shapes::createSphere(10.0f, 100u, 100u);
+	if (skybox_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the skybox");
+		return;
+	}
+	
+	float ellapsed_time_s = 0.0f;
+	auto const waves_set_uniforms = [&ellapsed_time_s, &camera_position](GLuint program) {
+		glUniform1f(glGetUniformLocation(program, "time"), ellapsed_time_s);
+		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
+	};
+
+	auto my_cube_map_id = bonobo::loadTextureCubeMap("C:/Skola/datorgrafik/res/cubemaps/NissiBeach2/posx.jpg", "C:/Skola/datorgrafik/res/cubemaps/NissiBeach2/negx.jpg",
+		"C:/Skola/datorgrafik/res/cubemaps/NissiBeach2/posy.jpg", "C:/Skola/datorgrafik/res/cubemaps/NissiBeach2/negy.jpg",
+		"C:/Skola/datorgrafik/res/cubemaps/NissiBeach2/posz.jpg", "C:/Skola/datorgrafik/res/cubemaps/NissiBeach2/negz.jpg");
+	Node skybox;
+	skybox.set_geometry(skybox_shape);
+	skybox.set_program(&skybox_shader, waves_set_uniforms);
+	skybox.add_texture("my_skybox", my_cube_map_id, GL_TEXTURE_CUBE_MAP);
+
+	auto my_waves_id = bonobo::loadTexture2D("C:/Skola/datorgrafik/res/textures/waves.png");
+	Node water;
+	water.set_geometry(quad_shape);
+	water.set_program(&waves_shader, waves_set_uniforms);
+	water.add_texture("my_skybox", my_cube_map_id, GL_TEXTURE_CUBE_MAP);
+	water.add_texture("my_waves", my_waves_id, GL_TEXTURE_2D);
+
+	Node sphere_water;
+	sphere_water.set_geometry(sphere_shape);
+	sphere_water.set_program(&waves_shader, waves_set_uniforms);
+	sphere_water.add_texture("my_skybox", my_cube_map_id, GL_TEXTURE_CUBE_MAP);
+	sphere_water.add_texture("my_waves", my_waves_id, GL_TEXTURE_2D);
 
 	glClearDepthf(1.0f);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -133,6 +215,10 @@ edaf80::Assignment4::run()
 			//
 			// Todo: Render all your geometry here.
 			//
+			//demo_sphere.render(mCamera.GetWorldToClipMatrix());
+			water.render(mCamera.GetWorldToClipMatrix());
+			skybox.render(mCamera.GetWorldToClipMatrix());
+			sphere_water.render(mCamera.GetWorldToClipMatrix());
 		}
 
 
