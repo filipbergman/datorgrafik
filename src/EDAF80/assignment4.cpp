@@ -94,7 +94,7 @@ edaf80::Assignment4::run()
 		  { ShaderType::fragment, "EDAF80/waves.frag" } },
 		waves_shader);
 	if (waves_shader == 0u)
-		LogError("Failed to load phong shader");
+		LogError("Failed to load waves shader");
 
 	//
 	// Todo: Load your geometry
